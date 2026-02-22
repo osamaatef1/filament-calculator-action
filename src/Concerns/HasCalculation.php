@@ -99,10 +99,14 @@ trait HasCalculation
 
                 $inputs[] = $input;
             } else {
-                $input = TextInput::make($field->getName())
+                $name = $field->getName();
+                $input = TextInput::make($name)
                     ->label($field->getLabel())
                     ->numeric()
-                    ->extraInputAttributes(['x-model.number' => $field->getName()]);
+                    ->extraInputAttributes([
+                        'data-calc-field' => $name,
+                        '@input' => "{$name} = parseFloat(\$event.target.value || 0)",
+                    ]);
 
                 if ($prefix !== null && $prefix !== '') {
                     $input->prefix($prefix);
@@ -139,7 +143,10 @@ trait HasCalculation
         return Section::make($this->calcSectionHeading)
             ->columns($this->calcColumns)
             ->schema($this->buildCalcInputs())
-            ->extraAttributes(['x-data' => $this->buildAlpineData()]);
+            ->extraAttributes([
+                'x-data' => $this->buildAlpineData(),
+                'x-init' => "\$nextTick(() => { \$el.querySelectorAll('[data-calc-field]').forEach(function(el){ el.dispatchEvent(new Event('input')) }) })",
+            ]);
     }
 
     public function computeResult(array $data): float
