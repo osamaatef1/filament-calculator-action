@@ -40,6 +40,20 @@ class CalcField
         return $this;
     }
 
+    public function multiplies(): static
+    {
+        $this->role = 'multiply';
+
+        return $this;
+    }
+
+    public function divides(): static
+    {
+        $this->role = 'divide';
+
+        return $this;
+    }
+
     public function result(): static
     {
         $this->role = 'result';

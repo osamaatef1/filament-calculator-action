@@ -155,6 +155,45 @@ protected function getHeaderActions(): array
 
 ---
 
+## Multiply & Divide Example — Quote Builder
+
+```php
+CalculatorAction::make('generate_quote')
+    ->label('Generate Quote')
+    ->calcSectionHeading('Quote Breakdown')
+    ->calcColumns(2)
+    ->calcPrefix('EGP')
+    ->calcFields([
+        CalcField::make('unit_price')
+            ->label('Unit Price')
+            ->adds()
+            ->required()
+            ->columnSpan(1),
+        CalcField::make('quantity')
+            ->label('Quantity')
+            ->multiplies()
+            ->default(1)
+            ->columnSpan(1),
+        CalcField::make('discount')
+            ->label('Discount')
+            ->subtracts()
+            ->default(0)
+            ->columnSpan(1),
+        CalcField::make('total')
+            ->label('Total')
+            ->result(),
+    ])
+    ->action(function (array $data, $record) {
+        $total = $this->computeResult($data);
+        // formula: (unit_price - discount) * quantity
+    })
+```
+
+> **Order of operations:** adds and subtracts are applied first, then multiplies, then divides.
+> So `(unit_price - discount) * quantity / installments` works as expected.
+
+---
+
 ## Another Example — Payroll Calculator
 
 ```php
@@ -209,8 +248,10 @@ CalculatorAction::make('process_payroll')
 | Method | Description |
 |--------|-------------|
 | `CalcField::make(string $name)` | Create a field with the given key name |
-| `->adds()` | Field value is **added** to the total |
-| `->subtracts()` | Field value is **subtracted** from the total |
+| `->adds()` | Field value is **added** to the running total |
+| `->subtracts()` | Field value is **subtracted** from the running total |
+| `->multiplies()` | Running total is **multiplied** by this field's value |
+| `->divides()` | Running total is **divided** by this field's value (zero-safe) |
 | `->result()` | Marks this as the **read-only result** display field |
 | `->label(string $label)` | Label shown above the input |
 | `->prefix(string $prefix)` | Currency/unit prefix (e.g. `'EGP'`, `'$'`) — falls back to `calcPrefix()` |
@@ -235,16 +276,41 @@ CalculatorAction::make('process_payroll')
 
 ## How it Works
 
-Each non-result `CalcField` gets two HTML event attributes: `onkeyup` and `onchange`. Both run the same small inline script that reads all sibling field values via `document.querySelector('[data-calc-field="name"]')` and writes the computed result to the result field:
+Each non-result `CalcField` gets two HTML event attributes: `onkeyup` and `onchange`. Both run the same small inline script that reads all field values via `document.querySelector('[data-calc-field="name"]')`, computes the result, and updates the result field:
 
 ```js
+// Generated JS (simplified)
+var __r = ((unit_price) - (discount)) * (quantity);
 var __t = document.querySelector('[data-calc-field="total"]');
-if (__t) __t.value = Math.max(0, (subtotal) + (extra_fees) - (discount)).toFixed(2);
+if (__t) {
+    __t.value = __r.toFixed(2);
+
+    // Negative warning — red outline + red text
+    if (__r < 0) {
+        __t.style.color = '#dc2626';
+        __t.style.outline = '2px solid #dc2626';
+    } else {
+        __t.style.color = '';
+        __t.style.outline = '';
+    }
+
+    // Flash animation — yellow highlight fades out
+    clearTimeout(window.__ct);
+    __t.style.transition = 'background-color 0.4s';
+    __t.style.backgroundColor = '#fef9c3';
+    window.__ct = setTimeout(function () { __t.style.backgroundColor = ''; }, 400);
+}
 ```
 
-This is the same battle-tested pattern used by traditional HTML forms — no framework dependency, no reactivity system, no round-trips.
+No framework dependency, no reactivity system, no round-trips. The result field is `readOnly` with `dehydrated(false)`, so Livewire does not include it in submitted form data.
 
-The result field is rendered as `readOnly` with `dehydrated(false)`, meaning Livewire does **not** include it in the submitted form data. The displayed value is for UX only.
+### Negative total warning
+
+When the computed result goes below zero, the result field turns **red** (color + outline) to signal the user to fix the inputs before submitting. The raw negative value is shown so the user understands what's wrong.
+
+### Flash animation
+
+Every time a value changes and a new result is computed, the result field briefly flashes **yellow** then fades back — giving clear visual feedback that the calculation fired.
 
 ---
 

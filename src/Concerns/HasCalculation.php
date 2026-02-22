@@ -46,6 +46,8 @@ trait HasCalculation
         $resultField = null;
         $addParts = [];
         $subtractParts = [];
+        $multiplyParts = [];
+        $divideParts = [];
 
         foreach ($this->calcFields as $field) {
             if ($field->isResult()) {
@@ -53,23 +55,39 @@ trait HasCalculation
                 continue;
             }
 
-            $expr = "(parseFloat(document.querySelector('[data-calc-field=\"{$field->getName()}\"]')?.value)||0)";
+            $name = $field->getName();
+            $role = $field->getRole();
+            $fallback = $role === 'divide' ? '1' : '0';
+            $expr = "(parseFloat(document.querySelector('[data-calc-field=\"{$name}\"]')?.value)||{$fallback})";
 
-            if ($field->getRole() === 'add') {
-                $addParts[] = $expr;
-            } elseif ($field->getRole() === 'subtract') {
-                $subtractParts[] = $expr;
-            }
+            match ($role) {
+                'add'      => $addParts[] = $expr,
+                'subtract' => $subtractParts[] = $expr,
+                'multiply' => $multiplyParts[] = $expr,
+                'divide'   => $divideParts[] = $expr,
+                default    => null,
+            };
         }
 
         if (! $resultField) {
             return '';
         }
 
-        $addExpr = count($addParts) > 0 ? implode('+', $addParts) : '0';
-        $subtractExpr = count($subtractParts) > 0 ? '('.implode('+', $subtractParts).')' : '0';
+        $addExpr = count($addParts) > 0 ? '(' . implode('+', $addParts) . ')' : '0';
+        $subtractExpr = count($subtractParts) > 0 ? '(' . implode('+', $subtractParts) . ')' : '0';
+        $resultExpr = "({$addExpr}-{$subtractExpr})";
 
-        return "var __t=document.querySelector('[data-calc-field=\"{$resultField}\"]');if(__t)__t.value=Math.max(0,({$addExpr})-{$subtractExpr}).toFixed(2)";
+        foreach ($multiplyParts as $part) {
+            $resultExpr = "({$resultExpr}*{$part})";
+        }
+
+        foreach ($divideParts as $part) {
+            $resultExpr = "({$resultExpr}/{$part})";
+        }
+
+        $sel = "[data-calc-field=\"{$resultField}\"]";
+
+        return "var __r={$resultExpr};var __t=document.querySelector('{$sel}');if(__t){__t.value=__r.toFixed(2);if(__r<0){__t.style.color='#dc2626';__t.style.outline='2px solid #dc2626'}else{__t.style.color='';__t.style.outline=''};clearTimeout(window.__ct);__t.style.transition='background-color 0.4s';__t.style.backgroundColor='#fef9c3';window.__ct=setTimeout(function(){__t.style.backgroundColor=''},400)}";
     }
 
     /** @deprecated Use buildCalcJs() approach instead */
@@ -186,11 +204,25 @@ trait HasCalculation
 
             $value = (float) ($data[$field->getName()] ?? 0);
 
-            if ($field->getRole() === 'add') {
-                $total += $value;
-            } elseif ($field->getRole() === 'subtract') {
-                $total -= $value;
+            match ($field->getRole()) {
+                'add'      => $total += $value,
+                'subtract' => $total -= $value,
+                default    => null,
+            };
+        }
+
+        foreach ($this->calcFields as $field) {
+            if ($field->isResult()) {
+                continue;
             }
+
+            $value = (float) ($data[$field->getName()] ?? 0);
+
+            match ($field->getRole()) {
+                'multiply' => $total *= ($value ?: 1.0),
+                'divide'   => $total /= ($value ?: 1.0),
+                default    => null,
+            };
         }
 
         return max(0.0, $total);
