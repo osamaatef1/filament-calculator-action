@@ -2,6 +2,7 @@
 
 namespace OsamaDev\FilamentCalculatorAction;
 
+use Filament\Forms\Form;
 use Filament\Tables\Actions\Action;
 use OsamaDev\FilamentCalculatorAction\Concerns\HasCalculation;
 
@@ -9,12 +10,25 @@ class CalculatorAction extends Action
 {
     use HasCalculation;
 
-    protected function setUp(): void
+    public function getForm(Form $form): ?Form
     {
-        parent::setUp();
+        $userForm = $this->form;
 
-        $this->form(function (array $schema): array {
-            return array_merge($schema, [$this->buildCalcSection()]);
-        });
+        if (is_array($userForm)) {
+            $schema = $userForm;
+        } elseif ($userForm instanceof \Closure) {
+            $evaluated = $this->evaluate($userForm, ['form' => $form]);
+            $schema = is_array($evaluated) ? $evaluated : [];
+        } else {
+            $schema = [];
+        }
+
+        $this->form = array_merge($schema, [$this->buildCalcSection()]);
+
+        $result = parent::getForm($form);
+
+        $this->form = $userForm;
+
+        return $result;
     }
 }
