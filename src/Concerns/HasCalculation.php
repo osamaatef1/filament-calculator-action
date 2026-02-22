@@ -41,6 +41,38 @@ trait HasCalculation
         return $this;
     }
 
+    public function buildCalcJs(): string
+    {
+        $resultField = null;
+        $addParts = [];
+        $subtractParts = [];
+
+        foreach ($this->calcFields as $field) {
+            if ($field->isResult()) {
+                $resultField = $field->getName();
+                continue;
+            }
+
+            $expr = "(parseFloat(document.querySelector('[data-calc-field=\"{$field->getName()}\"]')?.value)||0)";
+
+            if ($field->getRole() === 'add') {
+                $addParts[] = $expr;
+            } elseif ($field->getRole() === 'subtract') {
+                $subtractParts[] = $expr;
+            }
+        }
+
+        if (! $resultField) {
+            return '';
+        }
+
+        $addExpr = count($addParts) > 0 ? implode('+', $addParts) : '0';
+        $subtractExpr = count($subtractParts) > 0 ? '('.implode('+', $subtractParts).')' : '0';
+
+        return "var __t=document.querySelector('[data-calc-field=\"{$resultField}\"]');if(__t)__t.value=Math.max(0,({$addExpr})-{$subtractExpr}).toFixed(2)";
+    }
+
+    /** @deprecated Use buildCalcJs() approach instead */
     public function buildAlpineData(): string
     {
         $properties = [];
@@ -75,12 +107,13 @@ trait HasCalculation
 
         $allParts = array_merge($properties, [$resultGetter]);
 
-        return '{ ' . implode(', ', $allParts) . ' }';
+        return '{ '.implode(', ', $allParts).' }';
     }
 
     public function buildCalcInputs(): array
     {
         $inputs = [];
+        $js = $this->buildCalcJs();
 
         foreach ($this->calcFields as $field) {
             $prefix = $field->getPrefix() !== '' ? $field->getPrefix() : $this->calcPrefix;
@@ -91,7 +124,7 @@ trait HasCalculation
                     ->readOnly()
                     ->dehydrated(false)
                     ->columnSpanFull()
-                    ->extraInputAttributes(['x-bind:value' => 'result']);
+                    ->extraInputAttributes(['data-calc-field' => $field->getName()]);
 
                 if ($prefix !== null && $prefix !== '') {
                     $input->prefix($prefix);
@@ -105,6 +138,8 @@ trait HasCalculation
                     ->numeric()
                     ->extraInputAttributes([
                         'data-calc-field' => $name,
+                        'onkeyup' => $js,
+                        'onchange' => $js,
                     ]);
 
                 if ($prefix !== null && $prefix !== '') {
@@ -121,11 +156,7 @@ trait HasCalculation
 
                 $defaultValue = $field->getDefault();
                 if ($defaultValue !== null) {
-                    if ($defaultValue instanceof \Closure) {
-                        $input->default($defaultValue);
-                    } else {
-                        $input->default($defaultValue);
-                    }
+                    $input->default($defaultValue);
                 }
 
                 $input->columnSpan($field->getColumnSpan());
@@ -141,12 +172,7 @@ trait HasCalculation
     {
         return Section::make($this->calcSectionHeading)
             ->columns($this->calcColumns)
-            ->schema($this->buildCalcInputs())
-            ->extraAttributes([
-                'x-data' => $this->buildAlpineData(),
-                'x-init' => "\$nextTick(() => { \$el.querySelectorAll('[data-calc-field]').forEach(function(el){ el.dispatchEvent(new Event('input', { bubbles: true })) }) })",
-                '@input' => "if (\$event.target.dataset && \$event.target.dataset.calcField) { \$data[\$event.target.dataset.calcField] = parseFloat(\$event.target.value || 0) }",
-            ]);
+            ->schema($this->buildCalcInputs());
     }
 
     public function computeResult(array $data): float
