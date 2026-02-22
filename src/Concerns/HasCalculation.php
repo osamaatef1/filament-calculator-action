@@ -105,7 +105,6 @@ trait HasCalculation
                     ->numeric()
                     ->extraInputAttributes([
                         'data-calc-field' => $name,
-                        '@input' => "{$name} = parseFloat(\$event.target.value || 0)",
                     ]);
 
                 if ($prefix !== null && $prefix !== '') {
@@ -145,7 +144,8 @@ trait HasCalculation
             ->schema($this->buildCalcInputs())
             ->extraAttributes([
                 'x-data' => $this->buildAlpineData(),
-                'x-init' => "\$nextTick(() => { \$el.querySelectorAll('[data-calc-field]').forEach(function(el){ el.dispatchEvent(new Event('input')) }) })",
+                'x-init' => "\$nextTick(() => { \$el.querySelectorAll('[data-calc-field]').forEach(function(el){ el.dispatchEvent(new Event('input', { bubbles: true })) }) })",
+                '@input' => "if (\$event.target.dataset && \$event.target.dataset.calcField) { \$data[\$event.target.dataset.calcField] = parseFloat(\$event.target.value || 0) }",
             ]);
     }
 
