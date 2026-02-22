@@ -1,0 +1,9 @@
+/vendor/
+/node_modules/
+composer.lock
+.phpunit.result.cache
+.env
+.env.backup
+.php-version
+*.cache
+coverage/
