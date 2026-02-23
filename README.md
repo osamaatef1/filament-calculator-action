@@ -3,7 +3,7 @@
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/osama-dev/filament-calculator-action.svg?style=flat-square)](https://packagist.org/packages/osama-dev/filament-calculator-action)
 [![License](https://img.shields.io/packagist/l/osama-dev/filament-calculator-action.svg?style=flat-square)](LICENSE.md)
 
-A plug-and-play real-time calculator action for **Filament v3** — instant client-side arithmetic with zero Livewire round-trips.
+A plug-and-play real-time calculator action for **Filament v3 & v4** — instant client-side arithmetic with zero Livewire round-trips.
 
 Works in both **table row actions** (`CalculatorAction`) and **page header actions** (`CalculatorPageAction`).
 
@@ -33,7 +33,7 @@ No extra configuration needed — the service provider is auto-discovered.
 
 | Class | Extends | Use in |
 |---|---|---|
-| `CalculatorAction` | `Filament\Tables\Actions\Action` | Table row actions |
+| `CalculatorAction` | `Filament\Tables\Actions\Action` (v3) / `Filament\Actions\Action` (v4) | Table row actions |
 | `CalculatorPageAction` | `Filament\Actions\Action` | Page header actions (`getHeaderActions()`) |
 
 Both share the exact same API via the `HasCalculation` trait.
@@ -116,7 +116,7 @@ CalculatorAction::make('issue_receipt')
     ->modalSubmitActionLabel('Create Receipt')
 ```
 
-> **Note:** `->form([...])` defines your custom fields. The calculator section is always appended **after** your form fields automatically.
+> **Note:** `->form([...])` (v3) or `->schema([...])` (v4) defines your custom fields. The calculator section is always appended **after** your form fields automatically. Both methods work in both versions.
 
 ---
 
