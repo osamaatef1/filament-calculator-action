@@ -270,6 +270,9 @@ CalculatorAction::make('process_payroll')
 | `->calcSectionHeading(string $heading)` | Section heading for the calculator (default: `'Calculation'`) |
 | `->calcColumns(int $columns)` | Column count for the calc section grid (default: `2`) |
 | `->calcPrefix(string $prefix)` | Global prefix applied to all fields that don't define their own |
+| `->calcFlash(bool $flash = true)` | Enable/disable the yellow highlight animation (default: `true`) |
+| `->calcFlashColor(string $color)` | Highlight color as any CSS value (default: `'#fef9c3'`) |
+| `->calcFlashDuration(int $ms)` | Flash animation duration in milliseconds (default: `400`) |
 | `->computeResult(array $data)` | Server-side recalculation — use inside `->action()` |
 
 ---
@@ -311,6 +314,14 @@ When the computed result goes below zero, the result field turns **red** (color 
 ### Flash animation
 
 Every time a value changes and a new result is computed, the result field briefly flashes **yellow** then fades back — giving clear visual feedback that the calculation fired.
+
+The flash is enabled by default and fully customisable:
+
+```php
+->calcFlash(false)                  // disable entirely
+->calcFlashColor('#d1fae5')         // change to green
+->calcFlashDuration(600)            // slow it down to 600ms
+```
 
 ---
 

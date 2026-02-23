@@ -2,7 +2,6 @@
 
 namespace OsamaDev\FilamentCalculatorAction\Concerns;
 
-use Filament\Forms\Components\Section;
 use Filament\Forms\Components\TextInput;
 use OsamaDev\FilamentCalculatorAction\CalcField;
 
@@ -12,6 +11,9 @@ trait HasCalculation
     protected string $calcSectionHeading = 'Calculation';
     protected int $calcColumns = 2;
     protected ?string $calcPrefix = null;
+    protected bool $calcFlash = true;
+    protected string $calcFlashColor = '#fef9c3';
+    protected int $calcFlashDuration = 400;
 
     public function calcFields(array $fields): static
     {
@@ -37,6 +39,27 @@ trait HasCalculation
     public function calcPrefix(string $prefix): static
     {
         $this->calcPrefix = $prefix;
+
+        return $this;
+    }
+
+    public function calcFlash(bool $flash = true): static
+    {
+        $this->calcFlash = $flash;
+
+        return $this;
+    }
+
+    public function calcFlashColor(string $color): static
+    {
+        $this->calcFlashColor = $color;
+
+        return $this;
+    }
+
+    public function calcFlashDuration(int $ms): static
+    {
+        $this->calcFlashDuration = $ms;
 
         return $this;
     }
@@ -87,7 +110,16 @@ trait HasCalculation
 
         $sel = "[data-calc-field=\"{$resultField}\"]";
 
-        return "var __r={$resultExpr};var __t=document.querySelector('{$sel}');if(__t){__t.value=__r.toFixed(2);if(__r<0){__t.style.color='#dc2626';__t.style.outline='2px solid #dc2626'}else{__t.style.color='';__t.style.outline=''};clearTimeout(window.__ct);__t.style.transition='background-color 0.4s';__t.style.backgroundColor='#fef9c3';window.__ct=setTimeout(function(){__t.style.backgroundColor=''},400)}";
+        $flashPart = '';
+
+        if ($this->calcFlash) {
+            $flashPart = ';clearTimeout(window.__ct)'
+                . ';__t.style.transition=\'background-color ' . $this->calcFlashDuration . 'ms\''
+                . ';__t.style.backgroundColor=\'' . $this->calcFlashColor . '\''
+                . ';window.__ct=setTimeout(function(){__t.style.backgroundColor=\'\'}, ' . $this->calcFlashDuration . ')';
+        }
+
+        return "var __r={$resultExpr};var __t=document.querySelector('{$sel}');if(__t){__t.value=__r.toFixed(2);if(__r<0){__t.style.color='#dc2626';__t.style.outline='2px solid #dc2626'}else{__t.style.color='';__t.style.outline=''}{$flashPart}}";
     }
 
     /** @deprecated Use buildCalcJs() approach instead */
@@ -186,11 +218,44 @@ trait HasCalculation
         return $inputs;
     }
 
-    public function buildCalcSection(): Section
+    /**
+     * Build the calculator Section component.
+     *
+     * Resolves the correct Section class at runtime:
+     *   Filament v4 → Filament\Schemas\Components\Section
+     *   Filament v3 → Filament\Forms\Components\Section
+     */
+    public function buildCalcSection(): object
     {
-        return Section::make($this->calcSectionHeading)
+        $sectionClass = class_exists(\Filament\Schemas\Components\Section::class)
+            ? \Filament\Schemas\Components\Section::class
+            : \Filament\Forms\Components\Section::class;
+
+        return $sectionClass::make($this->calcSectionHeading)
             ->columns($this->calcColumns)
             ->schema($this->buildCalcInputs());
+    }
+
+    /**
+     * Wrap a user-supplied schema (array, Closure, or null) in a closure
+     * that appends the calc section at the end.
+     *
+     * Safe to call from anonymous classes (no parent:: calls).
+     */
+    protected function wrapCalcSchema(array|\Closure|null $userSchema): \Closure
+    {
+        return function () use ($userSchema) {
+            if ($userSchema instanceof \Closure) {
+                $resolved = $userSchema();
+                $components = is_array($resolved) ? $resolved : [];
+            } elseif (is_array($userSchema)) {
+                $components = $userSchema;
+            } else {
+                $components = [];
+            }
+
+            return array_merge($components, [$this->buildCalcSection()]);
+        };
     }
 
     public function computeResult(array $data): float

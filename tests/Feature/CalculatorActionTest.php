@@ -178,7 +178,7 @@ test('buildCalcInputs() returns correct count', function () {
     expect($calc->buildCalcInputs())->toHaveCount(4);
 });
 
-test('Result field has x-bind:value=result attribute', function () {
+test('Result field has data-calc-field attribute', function () {
     $calc = makeCalculator([
         CalcField::make('price')->adds(),
         CalcField::make('total')->result(),
@@ -186,16 +186,15 @@ test('Result field has x-bind:value=result attribute', function () {
 
     $inputs = $calc->buildCalcInputs();
 
-    // The last input should be the result field
     $resultInput = collect($inputs)->first(fn ($input) => $input->getName() === 'total');
 
     expect($resultInput)->not->toBeNull();
 
     $attrs = $resultInput->getExtraInputAttributes();
-    expect($attrs)->toHaveKey('x-bind:value', 'result');
+    expect($attrs)->toHaveKey('data-calc-field', 'total');
 });
 
-test('Non-result fields have x-model.number attribute', function () {
+test('Non-result fields have data-calc-field and onkeyup attributes', function () {
     $calc = makeCalculator([
         CalcField::make('price')->adds(),
         CalcField::make('total')->result(),
@@ -208,7 +207,9 @@ test('Non-result fields have x-model.number attribute', function () {
     expect($priceInput)->not->toBeNull();
 
     $attrs = $priceInput->getExtraInputAttributes();
-    expect($attrs)->toHaveKey('x-model.number', 'price');
+    expect($attrs)->toHaveKey('data-calc-field', 'price');
+    expect($attrs)->toHaveKey('onkeyup');
+    expect($attrs)->toHaveKey('onchange');
 });
 
 test('calcPrefix() is used as fallback when CalcField has no prefix', function () {
